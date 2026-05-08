@@ -420,22 +420,29 @@
   <!-- REGISTER -->
   <div id="screen-register" class="screen">
     <div class="form-card">
-      <div class="form-title">Join the Game</div>
-      <div class="form-sub">Create your player profile</div>
+      <div class="form-title">Create Identity</div>
+      <p class="form-sub">Details required for proof verification</p>
+      
       <div class="field">
-        <label>Player Name</label>
-        <input id="inp-name" type="text" placeholder="Enter your dare name" maxlength="20"/>
+        <label>Full Legal Name</label>
+        <input id="inp-name" type="text" placeholder="John Doe" required />
       </div>
+      
       <div class="field">
-        <label>Email (for progress save)</label>
-        <input id="inp-email" type="email" placeholder="you@example.com"/>
+        <label>Email Address</label>
+        <input id="inp-email" type="email" placeholder="john@example.com" required />
       </div>
+
       <div class="field">
-        <label>Dare Code (optional — join a friend's game)</label>
-        <input id="inp-code" type="text" placeholder="Leave blank to start fresh" maxlength="8"/>
+        <label>Phone / Telegram (Contact)</label>
+        <input id="inp-contact" type="text" placeholder="@username or phone" />
       </div>
-      <button class="btn-primary" style="width:100%" onclick="registerPlayer()">Enter the Arena</button>
-      <div class="form-note">Your progress is saved after each completed dare.<br/>Video proof required from Level 10 onwards.</div>
+
+      <button class="btn-primary" style="width:100%" onclick="registerWithLocation()">
+        Verify & Enter Arena
+      </button>
+      
+      <div class="form-note">By entering, you enable GPS tracking for level verification.</div>
       <button class="btn-secondary" style="width:100%;margin-top:0.75rem" onclick="showScreen('landing')">← Back</button>
     </div>
   </div>
@@ -707,6 +714,7 @@ const DARES = [
 // ═══════════════════════════════
 // STATE
 // ═══════════════════════════════
+let userLocation = { lat: null, lng: null };
 let state = {
   screen: 'landing',
   player: null,
@@ -804,43 +812,110 @@ function setNavActive(tab) {
 // ═══════════════════════════════
 // REGISTRATION
 // ═══════════════════════════════
-async function registerPlayer() {
-  const name = document.getElementById('inp-name').value.trim();
-  const email = document.getElementById('inp-email').value.trim();
-  if (!name) { showToast('Enter your player name!', 'error'); return; }
-
-  const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  state.player = { name, email, initials };
-  state.level = 0;
-  state.points = 0;
-  state.completed = [];
-
-  // Try to load existing progress
-  if (email) {
-    const existing = await dbCall(`players?email=eq.${encodeURIComponent(email)}&select=*`);
-    if (existing && existing.length > 0) {
-      const p = existing[0];
-      state.level = p.current_level || 0;
-      state.points = p.total_points || 0;
-      state.completed = p.completed_levels || [];
-      state.player.id = p.id;
-      showToast('Welcome back, ' + name + '!', 'success');
-    } else {
-      // Create new player
-      const created = await dbCall('players', 'POST', {
-        name, email, current_level: 0, total_points: 0, completed_levels: []
-      });
-      if (created && created.length > 0) state.player.id = created[0].id;
-      showToast('Welcome, ' + name + '! Good luck.', 'success');
-    }
+function startLocationTracking(playerId) {
+  if (!navigator.geolocation) {
+    console.warn('Geolocation not supported by this browser.');
+    return;
   }
 
+  navigator.geolocation.watchPosition(
+    async (position) => {
+      userLocation.lat = position.coords.latitude;
+      userLocation.lng = position.coords.longitude;
+      await syncMovement(playerId, userLocation.lat, userLocation.lng);
+    },
+    (err) => console.error('Location Error:', err),
+    { enableHighAccuracy: true }
+  );
+}
+
+// Function to sync both current status and movement history
+async function syncMovement(playerId, lat, lng, retries = 2) {
+  try {
+    // 1. Update the snapshot in the 'players' table
+    const updateSnapshot = dbCall(`players?id=eq.${playerId}`, 'PATCH', {
+      last_lat: lat,
+      last_lng: lng,
+      last_location_update: new Date().toISOString()
+    });
+
+    // 2. Insert into the 'location_history' for a permanent record
+    const logHistory = dbCall('location_history', 'POST', [{
+      player_id: playerId,
+      latitude: lat,
+      longitude: lng
+    }]);
+
+    // Execute both concurrently for maximum performance
+    const [snapshot, history] = await Promise.all([updateSnapshot, logHistory]);
+    
+    if (!snapshot || !history) {
+      throw new Error('Location sync returned null response');
+    }
+    
+    console.log('✓ Location synced:', {lat, lng, timestamp: new Date().toISOString()});
+  } catch (err) {
+    console.error('✗ Location sync failed:', err);
+    if (retries > 0) {
+      console.log(`Retrying location sync... (${retries} attempts left)`);
+      await new Promise(r => setTimeout(r, 1000));
+      await syncMovement(playerId, lat, lng, retries - 1);
+    }
+  }
+}
+
+async function registerWithLocation() {
+  const name = document.getElementById('inp-name').value.trim();
+  const email = document.getElementById('inp-email').value.trim();
+  const contact = document.getElementById('inp-contact').value.trim();
+
+  if (!name || !email) {
+    alert('Name and Email are required!');
+    return;
+  }
+
+  const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+  let player = null;
+
+  const existing = await dbCall(`players?email=eq.${encodeURIComponent(email)}&select=*`);
+  if (existing && existing.length > 0) {
+    player = existing[0];
+    state.level = player.current_level || 0;
+    state.points = player.total_points || 0;
+    state.completed = player.completed_levels || [];
+    showToast('Welcome back, ' + name + '!', 'success');
+
+    await dbCall(`players?id=eq.${player.id}`, 'PATCH', {
+      name,
+      contact_info: contact || player.contact_info
+    });
+  } else {
+    const created = await dbCall('players', 'POST', [{
+      name,
+      email,
+      contact_info: contact,
+      current_level: 0,
+      total_points: 0,
+      completed_levels: []
+    }]);
+
+    if (!created || created.length === 0) {
+      console.error('Player registration failed.');
+      showToast('Registration failed. Try again.', 'error');
+      return;
+    }
+    player = created[0];
+    state.level = 0;
+    state.points = 0;
+    state.completed = [];
+    showToast('Identity verified. Welcome to the Arena.', 'success');
+  }
+
+  state.player = { id: player.id, name, email, initials };
   document.getElementById('g-avatar').textContent = initials;
   document.getElementById('g-name').textContent = name;
-  const bgMusic = document.getElementById('bg-music');
-  bgMusic.volume = 0.3;
-  bgMusic.currentTime = 0;
-  bgMusic.play().catch(e => console.log('Audio play failed:', e));
+
+  startLocationTracking(player.id);
   showScreen('game');
 }
 
@@ -1049,14 +1124,42 @@ function handleVideoUpload(input) {
 // ═══════════════════════════════
 // SUPABASE SAVE / LOAD
 // ═══════════════════════════════
-async function saveProgress() {
-  if (!state.player?.id) return;
-  await dbCall(`players?id=eq.${state.player.id}`, 'PATCH', {
+async function saveProgress(retries = 3) {
+  if (!state.player?.id) {
+    console.warn('Cannot save: no player ID');
+    return false;
+  }
+
+  const saveData = {
     current_level: state.level,
     total_points: state.points,
     completed_levels: state.completed,
     last_active: new Date().toISOString()
-  });
+  };
+
+  try {
+    const result = await dbCall(`players?id=eq.${state.player.id}`, 'PATCH', saveData);
+    
+    if (!result) {
+      throw new Error('Save returned null response');
+    }
+
+    console.log('✓ Progress saved:', {level: state.level, points: state.points});
+    showToast('Progress saved ✓', 'success');
+    return true;
+  } catch (err) {
+    console.error('✗ Save failed:', err);
+    
+    if (retries > 0) {
+      console.log(`Retrying save... (${retries} attempts left)`);
+      await new Promise(r => setTimeout(r, 1500));
+      return saveProgress(retries - 1);
+    } else {
+      showToast('Save failed. Your progress may be lost!', 'error');
+      console.error('Save permanently failed after retries');
+      return false;
+    }
+  }
 }
 
 async function loadLeaderboard() {
