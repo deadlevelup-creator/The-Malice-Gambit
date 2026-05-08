@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>The Dare Gambit — 67 Levels of Chaos</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --card: #1a1a26;
+    --accent: #ff3c5f;
+    --accent2: #00f5c4;
+    --gold: #ffd166;
+    --text: #f0edf5;
+    --muted: #7a7a9a;
+    --border: rgba(255,255,255,0.07);
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  #canvas-bg {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0; opacity: 0.35;
+    pointer-events: none;
+  }
+  .app { position: relative; z-index: 1; }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+  /* ── LANDING ── */
+  #screen-landing {
+    text-align: center; padding: 2rem;
+    background: radial-gradient(ellipse 80% 60% at 50% 10%, rgba(255,60,95,0.12) 0%, transparent 70%);
+  }
+  .logo-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(3.5rem, 10vw, 7rem);
+    letter-spacing: 4px;
+    line-height: 1;
+    background: linear-gradient(135deg, #ff3c5f 0%, #ffd166 50%, #00f5c4 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+  }
+  .logo-sub {
+    font-size: 0.75rem; letter-spacing: 6px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 3rem;
+  }
+  .level-orbit {
+    width: 180px; height: 180px;
+    margin: 0 auto 3rem;
+    position: relative;
+  }
+  .orbit-ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 1.5px solid rgba(255,60,95,0.3);
+    animation: spin 8s linear infinite;
+  }
+  .orbit-ring:nth-child(2) {
+    inset: 20px; border-color: rgba(0,245,196,0.25);
+    animation-duration: 5s; animation-direction: reverse;
+  }
+  .orbit-dot {
+    position: absolute; top: -4px; left: 50%;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); transform: translateX(-50%);
+  }
+  .orbit-dot2 {
+    position: absolute; bottom: -4px; left: 50%;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent2); transform: translateX(-50%);
+  }
+  .orbit-center {
+    position: absolute; inset: 0; display: flex;
+    align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem;
+    color: var(--gold);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .btn-primary {
+    display: inline-block; padding: 1rem 3rem;
+    background: var(--accent); color: #fff;
+    font-family: 'Space Mono', monospace; font-size: 0.9rem;
+    letter-spacing: 3px; text-transform: uppercase;
+    border: none; border-radius: var(--radius);
+    cursor: pointer; transition: all 0.2s;
+    text-decoration: none;
+  }
+  .btn-primary:hover { background: #ff5a75; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,60,95,0.4); }
+  .btn-secondary {
+    display: inline-block; padding: 0.75rem 2rem;
+    background: transparent; color: var(--accent2);
+    font-family: 'Space Mono', monospace; font-size: 0.8rem;
+    letter-spacing: 2px; text-transform: uppercase;
+    border: 1px solid var(--accent2); border-radius: var(--radius);
+    cursor: pointer; transition: all 0.2s; margin-top: 1rem;
+  }
+  .btn-secondary:hover { background: rgba(0,245,196,0.1); }
+
+  .stats-row {
+    display: flex; gap: 2rem; justify-content: center;
+    margin-top: 3rem; flex-wrap: wrap;
+  }
+  .stat-pill {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 999px; padding: 0.5rem 1.25rem;
+    font-size: 0.7rem; letter-spacing: 2px; color: var(--muted);
+  }
+  .stat-pill span { color: var(--gold); }
+
+  /* ── REGISTER ── */
+  #screen-register { padding: 2rem; background: var(--bg); }
+  .form-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: 2.5rem; width: 100%;
+    max-width: 420px;
+  }
+  .form-title {
+    font-family: 'Bebas Neue', sans-serif; font-size: 2rem;
+    letter-spacing: 3px; margin-bottom: 0.25rem;
+  }
+  .form-sub { font-size: 0.7rem; color: var(--muted); letter-spacing: 2px; margin-bottom: 2rem; }
+  .field { margin-bottom: 1.25rem; }
+  .field label { display: block; font-size: 0.7rem; letter-spacing: 2px; color: var(--muted); margin-bottom: 0.5rem; }
+  .field input {
+    width: 100%; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 0.75rem 1rem; color: var(--text);
+    font-family: 'Space Mono', monospace; font-size: 0.85rem;
+    outline: none; transition: border-color 0.2s;
+  }
+  .field input:focus { border-color: var(--accent2); }
+  .form-note { font-size: 0.65rem; color: var(--muted); text-align: center; margin-top: 1rem; line-height: 1.6; }
+
+  /* ── GAME SCREEN ── */
+  #screen-game {
+    padding: 1rem; justify-content: flex-start;
+    padding-top: 1.5rem;
+  }
+  .game-header {
+    width: 100%; max-width: 560px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .player-badge {
+    display: flex; align-items: center; gap: 0.75rem;
+  }
+  .avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem; font-weight: 700;
+  }
+  .player-name { font-size: 0.8rem; font-weight: 700; }
+  .player-pts { font-size: 0.65rem; color: var(--gold); }
+  .level-badge {
+    background: var(--accent); border-radius: 999px;
+    padding: 0.4rem 1rem; font-size: 0.7rem;
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+
+  /* progress track */
+  .progress-track {
+    width: 100%; max-width: 560px;
+    display: flex; gap: 3px; margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .progress-pip {
+    flex: 1; min-width: 6px; height: 6px;
+    border-radius: 999px; background: var(--surface);
+    border: 1px solid var(--border);
+    transition: background 0.3s;
+  }
+  .progress-pip.done { background: var(--accent2); border-color: var(--accent2); }
+  .progress-pip.current { background: var(--accent); border-color: var(--accent); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  /* dare card */
+  .dare-card {
+    width: 100%; max-width: 560px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: 2rem;
+    position: relative; overflow: hidden;
+  }
+  .dare-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--gold), var(--accent2));
+  }
+  .dare-level-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 5rem; line-height: 1;
+    background: linear-gradient(135deg, var(--accent) 0%, transparent 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: absolute; top: 1rem; right: 1.5rem;
+    opacity: 0.25; pointer-events: none;
+  }
+  .dare-category {
+    display: inline-block; font-size: 0.6rem;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--accent2); border: 1px solid rgba(0,245,196,0.3);
+    border-radius: 999px; padding: 0.25rem 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .dare-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.8rem; letter-spacing: 2px;
+    margin-bottom: 0.75rem; line-height: 1.1;
+  }
+  .dare-desc {
+    font-size: 0.8rem; color: var(--muted); line-height: 1.7;
+    margin-bottom: 1.5rem;
+  }
+  /* timer */
+  .timer-row {
+    display: flex; align-items: center; gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .timer-ring-wrap { position: relative; width: 56px; height: 56px; flex-shrink: 0; }
+  .timer-ring-wrap svg { transform: rotate(-90deg); }
+  .timer-bg { fill: none; stroke: var(--surface); stroke-width: 4; }
+  .timer-arc { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke 0.5s; }
+  .timer-num {
+    position: absolute; inset: 0; display: flex;
+    align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem;
+    color: var(--gold);
+  }
+  .timer-label { font-size: 0.7rem; color: var(--muted); line-height: 1.5; }
+  .timer-label strong { color: var(--text); display: block; font-size: 0.85rem; }
+
+  /* points info */
+  .points-row {
+    display: flex; gap: 0.75rem; margin-bottom: 1.5rem;
+  }
+  .points-chip {
+    flex: 1; background: var(--surface); border-radius: 10px;
+    padding: 0.6rem 0.75rem; text-align: center;
+  }
+  .points-chip .val { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; }
+  .points-chip .lbl { font-size: 0.6rem; color: var(--muted); letter-spacing: 1px; }
+  .points-chip.earn .val { color: var(--accent2); }
+  .points-chip.lose .val { color: var(--accent); }
+  .points-chip.pts .val { color: var(--gold); }
+
+  /* action buttons */
+  .action-row { display: flex; gap: 0.75rem; }
+  .btn-dare {
+    flex: 1; padding: 1rem; border: none; border-radius: 12px;
+    font-family: 'Space Mono', monospace; font-size: 0.75rem;
+    letter-spacing: 2px; text-transform: uppercase; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-dare.complete {
+    background: var(--accent2); color: #0a0a0f; font-weight: 700;
+  }
+  .btn-dare.complete:hover { background: #00dbb0; transform: translateY(-1px); }
+  .btn-dare.skip {
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-dare.skip:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* proof upload (level 10+) */
+  .proof-section {
+    display: none; margin-top: 1.25rem;
+    background: var(--surface); border-radius: 12px;
+    padding: 1rem; border: 1px dashed rgba(0,245,196,0.3);
+  }
+  .proof-section.visible { display: block; }
+  .proof-label { font-size: 0.65rem; letter-spacing: 2px; color: var(--accent2); margin-bottom: 0.5rem; }
+  .proof-input {
+    display: flex; gap: 0.75rem; align-items: center;
+  }
+  .proof-input input[type=file] { display: none; }
+  .btn-upload {
+    padding: 0.6rem 1rem; background: transparent;
+    border: 1px solid var(--accent2); border-radius: 8px;
+    color: var(--accent2); font-family: 'Space Mono', monospace;
+    font-size: 0.65rem; letter-spacing: 1px; cursor: pointer;
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .btn-upload:hover { background: rgba(0,245,196,0.1); }
+  .upload-status { font-size: 0.7rem; color: var(--muted); }
+
+  /* ── LEADERBOARD ── */
+  #screen-leaderboard {
+    padding: 2rem; justify-content: flex-start; padding-top: 2rem;
+  }
+  .lb-header {
+    width: 100%; max-width: 560px; margin-bottom: 1.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .lb-title { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 3px; }
+  .lb-list { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 0.6rem; }
+  .lb-row {
+    display: flex; align-items: center; gap: 1rem;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 0.85rem 1rem;
+  }
+  .lb-rank {
+    font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem;
+    width: 28px; text-align: center; color: var(--muted);
+  }
+  .lb-rank.gold { color: var(--gold); }
+  .lb-rank.silver { color: #c0c0d0; }
+  .lb-rank.bronze { color: #c07840; }
+  .lb-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; font-weight: 700;
+  }
+  .lb-info { flex: 1; }
+  .lb-name { font-size: 0.8rem; font-weight: 700; }
+  .lb-lvl { font-size: 0.65rem; color: var(--muted); }
+  .lb-score { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; color: var(--gold); }
+
+  /* ── SUCCESS overlay ── */
+  .overlay {
+    display: none; position: fixed; inset: 0; z-index: 100;
+    background: rgba(10,10,15,0.92);
+    align-items: center; justify-content: center;
+    text-align: center; padding: 2rem;
+  }
+  .overlay.active { display: flex; }
+  .overlay-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 24px; padding: 2.5rem; max-width: 380px; width: 100%;
+  }
+  .overlay-icon {
+    font-size: 3rem; margin-bottom: 1rem;
+  }
+  .overlay-title {
+    font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem;
+    letter-spacing: 3px; margin-bottom: 0.5rem;
+  }
+  .overlay-msg { font-size: 0.78rem; color: var(--muted); line-height: 1.6; margin-bottom: 1.5rem; }
+  .overlay-pts {
+    font-family: 'Bebas Neue', sans-serif; font-size: 3rem;
+    color: var(--gold); margin-bottom: 1.5rem;
+  }
+
+  /* ── NAV ── */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    display: none; justify-content: space-around; padding: 0.6rem 0 calc(0.6rem + env(safe-area-inset-bottom));
+    z-index: 10;
+  }
+  .bottom-nav.active { display: flex; }
+  .nav-btn {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 3px; background: none; border: none; cursor: pointer;
+    color: var(--muted); font-family: 'Space Mono', monospace;
+    font-size: 0.55rem; letter-spacing: 1px; padding: 0.25rem 1rem;
+    transition: color 0.2s;
+  }
+  .nav-btn svg { width: 20px; height: 20px; }
+  .nav-btn.active { color: var(--accent2); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; top: 1rem; right: 1rem; z-index: 200;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 0.75rem 1.25rem;
+    font-size: 0.75rem; letter-spacing: 1px;
+    transform: translateX(200%); transition: transform 0.3s;
+    max-width: 280px;
+  }
+  .toast.show { transform: translateX(0); }
+  .toast.success { border-color: var(--accent2); color: var(--accent2); }
+  .toast.error { border-color: var(--accent); color: var(--accent); }
+
+  @media (max-width: 480px) {
+    .logo-title { font-size: 3.5rem; }
+    .dare-card { padding: 1.25rem; }
+    .stats-row { gap: 0.75rem; }
+  }
+</style>
+</head>
+<body>
+<canvas id="canvas-bg"></canvas>
+<div class="app">
+
+  <!-- LANDING -->
+  <div id="screen-landing" class="screen active">
+    <div class="logo-title">The Dare<br/>Gambit</div>
+    <div class="logo-sub">67 Levels · Real Dares · Prove It</div>
+    <div class="level-orbit">
+      <div class="orbit-ring"><div class="orbit-dot"></div></div>
+      <div class="orbit-ring"><div class="orbit-dot2"></div></div>
+      <div class="orbit-center">67</div>
+    </div>
+    <button class="btn-primary" onclick="showScreen('register')">Start the Gambit</button>
+    <br/>
+    <button class="btn-secondary" onclick="showScreen('leaderboard-init')">View Leaderboard</button>
+    <div class="stats-row">
+      <div class="stat-pill">Levels: <span>67</span></div>
+      <div class="stat-pill">Players: <span id="stat-players">—</span></div>
+      <div class="stat-pill">Completions: <span id="stat-completions">—</span></div>
+    </div>
+  </div>
+
+  <!-- REGISTER -->
+  <div id="screen-register" class="screen">
+    <div class="form-card">
+      <div class="form-title">Join the Game</div>
+      <div class="form-sub">Create your player profile</div>
+      <div class="field">
+        <label>Player Name</label>
+        <input id="inp-name" type="text" placeholder="Enter your dare name" maxlength="20"/>
+      </div>
+      <div class="field">
+        <label>Email (for progress save)</label>
+        <input id="inp-email" type="email" placeholder="you@example.com"/>
+      </div>
+      <div class="field">
+        <label>Dare Code (optional — join a friend's game)</label>
+        <input id="inp-code" type="text" placeholder="Leave blank to start fresh" maxlength="8"/>
+      </div>
+      <button class="btn-primary" style="width:100%" onclick="registerPlayer()">Enter the Arena</button>
+      <div class="form-note">Your progress is saved after each completed dare.<br/>Video proof required from Level 10 onwards.</div>
+      <button class="btn-secondary" style="width:100%;margin-top:0.75rem" onclick="showScreen('landing')">← Back</button>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="screen" style="padding-bottom:80px">
+    <div class="game-header">
+      <div class="player-badge">
+        <div class="avatar" id="g-avatar">?</div>
+        <div>
+          <div class="player-name" id="g-name">Player</div>
+          <div class="player-pts" id="g-pts">0 pts</div>
+        </div>
+      </div>
+      <div class="level-badge" id="g-level-badge">Level 1</div>
+    </div>
+
+    <div class="progress-track" id="progress-track"></div>
+
+    <div class="dare-card">
+      <div class="dare-level-num" id="dare-bignum">01</div>
+      <div class="dare-category" id="dare-cat">Warm-Up</div>
+      <div class="dare-title" id="dare-title">Loading dare...</div>
+      <div class="dare-desc" id="dare-desc"></div>
+
+      <div class="timer-row">
+        <div class="timer-ring-wrap">
+          <svg width="56" height="56" viewBox="0 0 56 56">
+            <circle class="timer-bg" cx="28" cy="28" r="22"/>
+            <circle class="timer-arc" id="timer-arc" cx="28" cy="28" r="22"
+              stroke-dasharray="138.2" stroke-dashoffset="0"/>
+          </svg>
+          <div class="timer-num" id="timer-num">—</div>
+        </div>
+        <div class="timer-label">
+          <strong id="timer-label-main">Time Remaining</strong>
+          Complete before the clock runs out
+        </div>
+      </div>
+
+      <div class="points-row">
+        <div class="points-chip earn">
+          <div class="val" id="chip-earn">+100</div>
+          <div class="lbl">If Complete</div>
+        </div>
+        <div class="points-chip lose">
+          <div class="val" id="chip-lose">−50</div>
+          <div class="lbl">If Skipped</div>
+        </div>
+        <div class="points-chip pts">
+          <div class="val" id="chip-total">0</div>
+          <div class="lbl">Total Pts</div>
+        </div>
+      </div>
+
+      <div class="proof-section" id="proof-section">
+        <div class="proof-label">📹 Video Proof Required (30s – 1min)</div>
+        <div class="proof-input">
+          <input type="file" id="proof-file" accept="video/*" onchange="handleVideoUpload(this)"/>
+          <button class="btn-upload" onclick="document.getElementById('proof-file').click()">Upload Video</button>
+          <div class="upload-status" id="upload-status">No file chosen</div>
+        </div>
+      </div>
+
+      <div class="action-row" style="margin-top:1.25rem">
+        <button class="btn-dare complete" id="btn-complete" onclick="completeLevel()">✓ Dare Done!</button>
+        <button class="btn-dare skip" onclick="skipLevel()">Skip (−pts)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div id="screen-leaderboard" class="screen" style="padding-bottom:80px">
+    <div class="lb-header" style="max-width:560px;width:100%">
+      <div class="lb-title">Top Dare-rs</div>
+      <button class="btn-secondary" style="padding:0.4rem 1rem;font-size:0.65rem" onclick="loadLeaderboard()">Refresh</button>
+    </div>
+    <div class="lb-list" id="lb-list">
+      <div style="color:var(--muted);font-size:0.75rem;text-align:center;padding:2rem">Loading...</div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="nav-btn active" id="nav-game" onclick="navTo('game')">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      Game
+    </button>
+    <button class="nav-btn" id="nav-lb" onclick="navTo('leaderboard')">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 21H5a2 2 0 01-2-2v-4a2 2 0 012-2h3m8 8h3a2 2 0 002-2v-8a2 2 0 00-2-2h-3m-4 12V3"/></svg>
+      Board
+    </button>
+  </nav>
+</div>
+
+<!-- SUCCESS OVERLAY -->
+<div class="overlay" id="overlay-success">
+  <div class="overlay-card">
+    <div class="overlay-icon">🎯</div>
+    <div class="overlay-title">Dare Complete!</div>
+    <div class="overlay-pts" id="ov-pts">+100</div>
+    <div class="overlay-msg" id="ov-msg">Nailed it. Next dare awaits...</div>
+    <button class="btn-primary" style="width:100%" onclick="dismissOverlay()">Next Level →</button>
+  </div>
+</div>
+
+<!-- FAIL OVERLAY -->
+<div class="overlay" id="overlay-fail">
+  <div class="overlay-card">
+    <div class="overlay-icon">⏱️</div>
+    <div class="overlay-title" style="color:var(--accent)">Time's Up!</div>
+    <div class="overlay-pts" style="color:var(--accent)" id="ov-fail-pts">−50</div>
+    <div class="overlay-msg">You ran out of time. Points deducted — want to retry or push to the next level?</div>
+    <div style="display:flex;gap:0.75rem">
+      <button class="btn-dare complete" style="flex:1;padding:0.85rem" onclick="retryLevel()">Retry</button>
+      <button class="btn-dare skip" style="flex:1;padding:0.85rem" onclick="dismissFailOverlay()">Next Level</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════
+// THREE.JS BACKGROUND
+// ═══════════════════════════════
+(function initThree() {
+  const canvas = document.getElementById('canvas-bg');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.z = 5;
+
+  const geo = new THREE.IcosahedronGeometry(1.8, 1);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xff3c5f, wireframe: true, opacity: 0.4, transparent: true
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  scene.add(mesh);
+
+  const geo2 = new THREE.OctahedronGeometry(2.8, 0);
+  const mat2 = new THREE.MeshStandardMaterial({
+    color: 0x00f5c4, wireframe: true, opacity: 0.15, transparent: true
+  });
+  const mesh2 = new THREE.Mesh(geo2, mat2);
+  scene.add(mesh2);
+
+  const light = new THREE.PointLight(0xff3c5f, 2, 20);
+  light.position.set(3, 3, 3);
+  scene.add(light);
+  scene.add(new THREE.AmbientLight(0x111111));
+
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  let t = 0;
+  (function loop() {
+    requestAnimationFrame(loop);
+    t += 0.004;
+    mesh.rotation.x = t * 0.7;
+    mesh.rotation.y = t;
+    mesh2.rotation.x = -t * 0.3;
+    mesh2.rotation.y = -t * 0.5;
+    renderer.render(scene, camera);
+  })();
+})();
+
+// ═══════════════════════════════
+// GAME DATA
+// ═══════════════════════════════
+const DARES = [
+  // Levels 1-10: Warm-Up / Social / Silly
+  { cat:'Warm-Up', title:'The Mirror Stare', desc:'Stare at yourself in a mirror for 60 seconds without blinking. Think about your greatest embarrassing moment.', time:120, earn:80, lose:40 },
+  { cat:'Social', title:'Text the Unexpected', desc:'Send a GIF of a dancing hotdog to the last 3 people you texted. No explanation. Watch their replies.', time:180, earn:90, lose:45 },
+  { cat:'Physical', title:'The Statue Challenge', desc:'Stand perfectly still like a statue in a public area for 2 minutes. Do not react to anyone or anything.', time:180, earn:100, lose:50 },
+  { cat:'Creative', title:'Freestyle Rap', desc:'Record yourself freestyling a 30-second rap about your current location. Must rhyme at least 4 times.', time:240, earn:110, lose:55 },
+  { cat:'Social', title:'Compliment Stranger', desc:'Give a sincere, creative compliment to a stranger you encounter in the next hour. Describe their reaction.', time:3600, earn:120, lose:60 },
+  { cat:'Physical', title:'10 Burpees Right Now', desc:'Do 10 burpees immediately. Record your screen timer as you do them. No stopping allowed.', time:120, earn:100, lose:50 },
+  { cat:'Creative', title:'Draw Your Fear', desc:'Draw your biggest fear using only 5 lines in 45 seconds. Post it to this game.', time:60, earn:90, lose:45 },
+  { cat:'Silly', title:'The Robot Walk', desc:'Walk like a robot for the entire duration of your next trip to get water or food. In public = bonus 20pts.', time:900, earn:130, lose:65 },
+  { cat:'Social', title:'Honest Status', desc:'Post your most honest "how I actually feel right now" as your social media status for 10 minutes.', time:600, earn:140, lose:70 },
+  { cat:'Physical', title:'60-Second Plank', desc:'Hold a plank for 60 seconds. Film it. This is your last level before video proof becomes mandatory.', time:90, earn:150, lose:75 },
+  // Levels 11-20: Medium difficulty
+  { cat:'Social', title:'Cold Call Courage', desc:'Call an old friend you haven\'t spoken to in over a year. Keep them on the phone for at least 2 minutes.', time:7200, earn:180, lose:90 },
+  { cat:'Creative', title:'Speed Poem', desc:'Write a 4-line poem about this exact moment in your life. Must be honest. Film yourself reading it aloud.', time:300, earn:160, lose:80 },
+  { cat:'Physical', title:'Ice Water Hands', desc:'Hold your hands in a bowl of ice water for 30 seconds. Film the reaction on your face — no cutting away.', time:120, earn:200, lose:100 },
+  { cat:'Silly', title:'Sing in the Shower', desc:'Sing any song of your choice loudly in the shower for 1 full minute. Must be audible on video.', time:300, earn:170, lose:85 },
+  { cat:'Social', title:'Awkward Apology', desc:'Apologise to someone you\'ve wronged in the past — even if it\'s small. Screenshot or record the conversation.', time:86400, earn:250, lose:125 },
+  { cat:'Creative', title:'Improvised Monologue', desc:'Stand in front of a camera and deliver a 1-minute monologue as if you\'re the villain in your own life story.', time:180, earn:220, lose:110 },
+  { cat:'Physical', title:'100 Jumping Jacks', desc:'Complete 100 jumping jacks in one go. Film continuously. Stopping = dare failed.', time:300, earn:200, lose:100 },
+  { cat:'Silly', title:'Eat Something Weird', desc:'Combine 2 foods that should never go together and eat a full bite. Film the whole experience.', time:600, earn:180, lose:90 },
+  { cat:'Social', title:'Vulnerable Post', desc:'Post something genuinely vulnerable about yourself online. Keep it up for at least 30 minutes.', time:1800, earn:300, lose:150 },
+  { cat:'Physical', title:'Cold Shower — 1 Min', desc:'Take a full cold shower for 1 unbroken minute. No adjusting the temperature. Film the whole thing.', time:180, earn:280, lose:140 },
+  // Levels 21-30: Getting real
+  { cat:'Creative', title:'Letter to Future Self', desc:'Handwrite a letter to yourself 10 years from now. Film yourself reading the most honest line aloud.', time:1800, earn:260, lose:130 },
+  { cat:'Social', title:'Ask for Rejection', desc:'Ask for something you\'re almost certain to be told "no" to. Document the attempt and the response.', time:86400, earn:350, lose:175 },
+  { cat:'Physical', title:'Sunrise or Sunset', desc:'Watch an entire sunrise or sunset without looking at your phone once. Film the last 30 seconds.', time:86400, earn:300, lose:150 },
+  { cat:'Silly', title:'Impersonate Your Boss', desc:'Film a 45-second impression of your boss, teacher, or most intimidating authority figure. No filtering.', time:300, earn:260, lose:130 },
+  { cat:'Social', title:'Silent Dinner', desc:'Eat your next meal in complete silence with at least one other person without explaining why.', time:86400, earn:280, lose:140 },
+  { cat:'Creative', title:'One Take Song Cover', desc:'Film yourself covering any song — one take only. No editing, no do-overs. Whatever happens, happens.', time:600, earn:300, lose:150 },
+  { cat:'Physical', title:'2-Mile Walk Barefoot', desc:'Walk 2 miles (or 20 minutes) with no shoes. Outdoors only. Film the soles of your feet at the end.', time:3600, earn:350, lose:175 },
+  { cat:'Social', title:'Be Fully Present', desc:'Spend 30 minutes with someone important to you with zero phone use. Film their reaction when you tell them why.', time:3600, earn:320, lose:160 },
+  { cat:'Creative', title:'Dance Alone in Public', desc:'Find a public place and dance alone to music only you can hear (headphones) for 1 full minute.', time:600, earn:380, lose:190 },
+  { cat:'Physical', title:'5-Minute Cold Exposure', desc:'Sit outside in the cold (or cold shower) for 5 minutes. No clothing on arms. Film duration.', time:360, earn:400, lose:200 },
+  // Levels 31-40: Harder
+  { cat:'Social', title:'Compliment 5 Strangers', desc:'Give genuine compliments to 5 different strangers in one outing. Film their reactions (with permission).', time:7200, earn:420, lose:210 },
+  { cat:'Creative', title:'Roast Yourself', desc:'Record a 2-minute roast of yourself. Be ruthlessly funny and honest. No self-pity allowed.', time:300, earn:400, lose:200 },
+  { cat:'Physical', title:'15-Minute Run — No Music', desc:'Run for 15 minutes with no music, no podcast — just you and your thoughts. Film the first and last 30 seconds.', time:1200, earn:450, lose:225 },
+  { cat:'Social', title:'Tell Someone the Truth', desc:'Tell someone something you\'ve been holding back — something honest that needs to be said. Film your prep.', time:86400, earn:500, lose:250 },
+  { cat:'Silly', title:'Wear It All Day', desc:'Wear something outrageous (tinfoil hat, cape, etc.) for an entire day outside. Film 3 public interactions.', time:86400, earn:480, lose:240 },
+  { cat:'Creative', title:'Confessional Video', desc:'Record a 2-minute confessional about something you\'ve never admitted publicly. Post it for 1 hour.', time:3600, earn:550, lose:275 },
+  { cat:'Physical', title:'Handstand Attempt', desc:'Attempt a handstand for 60 seconds of trying. Film the entire uncut attempt — falls and all.', time:120, earn:450, lose:225 },
+  { cat:'Social', title:'Interview a Stranger', desc:'Ask a stranger to answer 3 deep questions about their life. Get their permission to film it.', time:7200, earn:520, lose:260 },
+  { cat:'Creative', title:'No-Filter Day', desc:'For 2 hours, say only completely honest things — no social pleasantries. Document 3 interactions.', time:7200, earn:580, lose:290 },
+  { cat:'Physical', title:'10-Min Meditation — Outdoors', desc:'Meditate outside for 10 unbroken minutes. No app, no timer on phone. Film the before and after state.', time:720, earn:500, lose:250 },
+  // Levels 41-50: Intense
+  { cat:'Social', title:'Eat Alone at a Restaurant', desc:'Go to a sit-down restaurant and eat alone, without looking at your phone at all. Film your arrival and leaving.', time:7200, earn:600, lose:300 },
+  { cat:'Creative', title:'30-Day Promise — Announced', desc:'Make a publicly announced 30-day commitment to change one habit. Film the announcement. Check-in at Day 7.', time:86400, earn:700, lose:350 },
+  { cat:'Physical', title:'Sleep on the Floor', desc:'Sleep on the floor tonight with only one blanket. No pillow. Film yourself waking up.', time:86400, earn:650, lose:325 },
+  { cat:'Silly', title:'Full Conversation in Rhyme', desc:'Have a complete, genuine conversation with someone using only rhyming sentences. Minimum 5 exchanges. Film it.', time:3600, earn:620, lose:310 },
+  { cat:'Social', title:'Random Act — No Credit', desc:'Do a meaningful act of kindness for a stranger without telling anyone about it. Film you doing it (not them).', time:86400, earn:680, lose:340 },
+  { cat:'Creative', title:'Life in 60 Seconds', desc:'Film a 60-second documentary of your current life — no narration, just imagery and sound. Post it.', time:1800, earn:750, lose:375 },
+  { cat:'Physical', title:'3-Hour Digital Detox', desc:'Turn off your phone for 3 unbroken hours. Film it going off and turning back on. Log what happened.', time:10800, earn:700, lose:350 },
+  { cat:'Social', title:'Forgive Someone', desc:'Genuinely forgive someone who wronged you — whether you tell them or not. Film yourself explaining why.', time:86400, earn:800, lose:400 },
+  { cat:'Creative', title:'Teach a Skill', desc:'Film yourself teaching someone a skill — any skill you have. Must be someone who genuinely learns something.', time:86400, earn:750, lose:375 },
+  { cat:'Physical', title:'Fast for 16 Hours', desc:'Complete a 16-hour intermittent fast. Film the moment you start and the moment you break the fast.', time:57600, earn:850, lose:425 },
+  // Levels 51-60: Very hard
+  { cat:'Social', title:'No Complaints — 24 Hours', desc:'Go 24 hours without a single complaint — to anyone, about anything. Document every time you catch yourself almost complaining.', time:86400, earn:900, lose:450 },
+  { cat:'Creative', title:'Write Your Eulogy', desc:'Write the eulogy you hope to receive someday. Film yourself reading the most important line.', time:3600, earn:1000, lose:500 },
+  { cat:'Physical', title:'5K Run — No Warmup', desc:'Run a 5K from a cold start. Film your timer and face at the finish. No walking.', time:3600, earn:950, lose:475 },
+  { cat:'Social', title:'Ask for What You Want', desc:'Ask for something you truly want from someone in your life — directly, clearly, with no manipulation. Film the ask.', time:86400, earn:1100, lose:550 },
+  { cat:'Creative', title:'Destroy Something You Made', desc:'Create something — art, writing, building — and then destroy it. Film the creation and the destruction.', time:7200, earn:1000, lose:500 },
+  { cat:'Physical', title:'2-Hour Hike — Solo', desc:'Complete a 2-hour hike completely alone with no music. Film a 2-min reflection at the peak or turnaround.', time:7200, earn:1100, lose:550 },
+  { cat:'Social', title:'24-Hour Honesty Pact', desc:'Tell everyone you interact with today that you\'re practicing radical honesty. Film the first and last interaction.', time:86400, earn:1200, lose:600 },
+  { cat:'Creative', title:'Manifesto Video', desc:'Record a 3-minute video of your personal manifesto — your rules for life. No notes. One take.', time:300, earn:1150, lose:575 },
+  { cat:'Physical', title:'50 Push-Ups in One Set', desc:'Complete 50 consecutive push-ups. Film the entire set continuously. No pausing at top.', time:300, earn:1100, lose:550 },
+  { cat:'Social', title:'Reconnect Deeply', desc:'Spend 3 hours of quality time with a family member you\'ve been distant from. Film the moment you arrive.', time:86400, earn:1300, lose:650 },
+  // Levels 61-67: Final tier
+  { cat:'FINAL', title:'The Life Audit', desc:'Spend 2 hours writing a complete audit of your life: what\'s working, what isn\'t, what you\'ll change. Film the summary.', time:7200, earn:1500, lose:750 },
+  { cat:'FINAL', title:'Make the Call', desc:'Make the phone call you\'ve been avoiding for months. Whatever it is. Film yourself dialing.', time:86400, earn:1800, lose:900 },
+  { cat:'FINAL', title:'Cold Water Immersion — 5 Min', desc:'Full-body cold water immersion for 5 minutes. Film the entry, the duration, and the exit.', time:480, earn:2000, lose:1000 },
+  { cat:'FINAL', title:'The Public Declaration', desc:'Make a video declaring the most important thing you\'ve learned across all 67 levels. Post it publicly.', time:86400, earn:2500, lose:1250 },
+  { cat:'FINAL', title:'Mentor Someone', desc:'Spend 2 hours genuinely mentoring or helping someone with something hard. Film the handshake or hug at the end.', time:86400, earn:2200, lose:1100 },
+  { cat:'FINAL', title:'The Letter — Send It', desc:'Write and actually send a letter (physical or digital) to someone who changed your life. Film yourself sending it.', time:86400, earn:2500, lose:1250 },
+  { cat:'FINAL', title:'67th Dare — Your Own', desc:'You\'ve made it. Create your own hardest dare, do it, and film proof. The dare must be harder than anything in this list.', time:86400, earn:5000, lose:0 },
+];
+
+// ═══════════════════════════════
+// STATE
+// ═══════════════════════════════
+let state = {
+  screen: 'landing',
+  player: null,
+  level: 0,
+  points: 0,
+  videoProof: null,
+  timerInterval: null,
+  timerLeft: 0,
+  completed: []
+};
+
+// ═══════════════════════════════
+// SUPABASE CONFIG
+// ═══════════════════════════════
+// 🔧 MODIFY: Replace with your Supabase URL and anon key
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+async function dbCall(endpoint, method='GET', body=null) {
+  try {
+    const opts = {
+      method,
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      }
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(SUPABASE_URL + '/rest/v1/' + endpoint, opts);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+// ═══════════════════════════════
+// SCREEN ROUTING
+// ═══════════════════════════════
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const nav = document.getElementById('bottom-nav');
+
+  if (name === 'landing') {
+    document.getElementById('screen-landing').classList.add('active');
+    nav.classList.remove('active');
+    loadStats();
+  } else if (name === 'register') {
+    document.getElementById('screen-register').classList.add('active');
+    nav.classList.remove('active');
+  } else if (name === 'game') {
+    document.getElementById('screen-game').classList.add('active');
+    nav.classList.add('active');
+    setNavActive('game');
+    renderLevel();
+  } else if (name === 'leaderboard' || name === 'leaderboard-init') {
+    document.getElementById('screen-leaderboard').classList.add('active');
+    if (name !== 'leaderboard-init') {
+      nav.classList.add('active');
+      setNavActive('leaderboard');
+    }
+    loadLeaderboard();
+  }
+  state.screen = name;
+}
+
+function navTo(tab) {
+  if (!state.player && tab === 'game') { showScreen('register'); return; }
+  showScreen(tab);
+}
+
+function setNavActive(tab) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('nav-' + tab);
+  if (btn) btn.classList.add('active');
+}
+
+// ═══════════════════════════════
+// REGISTRATION
+// ═══════════════════════════════
+async function registerPlayer() {
+  const name = document.getElementById('inp-name').value.trim();
+  const email = document.getElementById('inp-email').value.trim();
+  if (!name) { showToast('Enter your player name!', 'error'); return; }
+
+  const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  state.player = { name, email, initials };
+  state.level = 0;
+  state.points = 0;
+  state.completed = [];
+
+  // Try to load existing progress
+  if (email) {
+    const existing = await dbCall(`players?email=eq.${encodeURIComponent(email)}&select=*`);
+    if (existing && existing.length > 0) {
+      const p = existing[0];
+      state.level = p.current_level || 0;
+      state.points = p.total_points || 0;
+      state.completed = p.completed_levels || [];
+      state.player.id = p.id;
+      showToast('Welcome back, ' + name + '!', 'success');
+    } else {
+      // Create new player
+      const created = await dbCall('players', 'POST', {
+        name, email, current_level: 0, total_points: 0, completed_levels: []
+      });
+      if (created && created.length > 0) state.player.id = created[0].id;
+      showToast('Welcome, ' + name + '! Good luck.', 'success');
+    }
+  }
+
+  document.getElementById('g-avatar').textContent = initials;
+  document.getElementById('g-name').textContent = name;
+  showScreen('game');
+}
+
+// ═══════════════════════════════
+// LEVEL RENDERING
+// ═══════════════════════════════
+function renderLevel() {
+  const lvl = state.level;
+  if (lvl >= DARES.length) { showCompletion(); return; }
+
+  const dare = DARES[lvl];
+  const levelNum = lvl + 1;
+
+  document.getElementById('dare-bignum').textContent = String(levelNum).padStart(2,'0');
+  document.getElementById('dare-cat').textContent = dare.cat;
+  document.getElementById('dare-title').textContent = dare.title;
+  document.getElementById('dare-desc').textContent = dare.desc;
+  document.getElementById('chip-earn').textContent = '+' + dare.earn;
+  document.getElementById('chip-lose').textContent = '−' + dare.lose;
+  document.getElementById('chip-total').textContent = state.points;
+  document.getElementById('g-pts').textContent = state.points + ' pts';
+  document.getElementById('g-level-badge').textContent = 'Level ' + levelNum;
+
+  // Proof section for level 10+
+  const proofSection = document.getElementById('proof-section');
+  if (lvl >= 10) {
+    proofSection.classList.add('visible');
+    document.getElementById('btn-complete').disabled = true;
+    document.getElementById('btn-complete').textContent = '⬆ Upload Video First';
+    state.videoProof = null;
+    document.getElementById('upload-status').textContent = 'No file chosen';
+  } else {
+    proofSection.classList.remove('visible');
+    document.getElementById('btn-complete').disabled = false;
+    document.getElementById('btn-complete').textContent = '✓ Dare Done!';
+  }
+
+  buildProgressTrack();
+  startTimer(dare.time);
+}
+
+function buildProgressTrack() {
+  const track = document.getElementById('progress-track');
+  track.innerHTML = '';
+  for (let i = 0; i < 67; i++) {
+    const pip = document.createElement('div');
+    pip.className = 'progress-pip' +
+      (i < state.level ? ' done' : '') +
+      (i === state.level ? ' current' : '');
+    track.appendChild(pip);
+  }
+}
+
+// ═══════════════════════════════
+// TIMER
+// ═══════════════════════════════
+function startTimer(seconds) {
+  if (state.timerInterval) clearInterval(state.timerInterval);
+  state.timerLeft = seconds;
+  updateTimerUI(seconds, seconds);
+
+  state.timerInterval = setInterval(() => {
+    state.timerLeft--;
+    updateTimerUI(state.timerLeft, seconds);
+    if (state.timerLeft <= 0) {
+      clearInterval(state.timerInterval);
+      onTimerExpire();
+    }
+  }, 1000);
+}
+
+function updateTimerUI(left, total) {
+  const arc = document.getElementById('timer-arc');
+  const num = document.getElementById('timer-num');
+  const label = document.getElementById('timer-label-main');
+  const circ = 138.2;
+  const pct = Math.max(0, left / total);
+  arc.style.strokeDashoffset = circ * (1 - pct);
+  arc.style.stroke = pct > 0.5 ? '#00f5c4' : pct > 0.2 ? '#ffd166' : '#ff3c5f';
+
+  if (left > 3600) {
+    const h = Math.floor(left/3600), m = Math.floor((left%3600)/60);
+    num.textContent = h + 'h';
+    label.textContent = h + 'h ' + m + 'm remaining';
+  } else if (left > 60) {
+    const m = Math.floor(left/60), s = left % 60;
+    num.textContent = m + 'm';
+    label.textContent = m + 'm ' + s + 's remaining';
+  } else {
+    num.textContent = left;
+    label.textContent = left + 's remaining';
+  }
+}
+
+function onTimerExpire() {
+  const dare = DARES[state.level];
+  state.points = Math.max(0, state.points - dare.lose);
+  document.getElementById('ov-fail-pts').textContent = '−' + dare.lose;
+  document.getElementById('overlay-fail').classList.add('active');
+}
+
+// ═══════════════════════════════
+// COMPLETE / SKIP
+// ═══════════════════════════════
+async function completeLevel() {
+  if (state.level >= 10 && !state.videoProof) {
+    showToast('Upload your video proof first!', 'error');
+    return;
+  }
+  if (state.timerInterval) clearInterval(state.timerInterval);
+
+  const dare = DARES[state.level];
+  state.points += dare.earn;
+  state.completed.push(state.level);
+
+  document.getElementById('ov-pts').textContent = '+' + dare.earn;
+  document.getElementById('ov-msg').textContent =
+    state.level < 66 ? 'Level ' + (state.level+1) + ' complete! Next dare awaits...' :
+    '🎉 YOU FINISHED THE DARE GAMBIT! All 67 levels conquered!';
+  document.getElementById('overlay-success').classList.add('active');
+
+  await saveProgress();
+}
+
+async function skipLevel() {
+  if (state.timerInterval) clearInterval(state.timerInterval);
+  const dare = DARES[state.level];
+  state.points = Math.max(0, state.points - dare.lose);
+  showToast('Skipped. −' + dare.lose + ' pts.', 'error');
+  advanceLevel();
+}
+
+function dismissOverlay() {
+  document.getElementById('overlay-success').classList.remove('active');
+  advanceLevel();
+}
+
+function dismissFailOverlay() {
+  document.getElementById('overlay-fail').classList.remove('active');
+  advanceLevel();
+}
+
+function retryLevel() {
+  document.getElementById('overlay-fail').classList.remove('active');
+  renderLevel();
+}
+
+function advanceLevel() {
+  state.level = Math.min(state.level + 1, 66);
+  if (state.level >= 67) { showCompletion(); return; }
+  renderLevel();
+}
+
+function showCompletion() {
+  if (state.timerInterval) clearInterval(state.timerInterval);
+  document.getElementById('overlay-success').classList.remove('active');
+  document.getElementById('ov-pts').textContent = state.points + ' pts';
+  document.getElementById('ov-msg').textContent =
+    '🏆 You completed ALL 67 Dare Gambit levels! Final score: ' + state.points + ' points. You are a legend.';
+  document.getElementById('overlay-success').classList.add('active');
+  document.querySelector('#overlay-success .btn-primary').textContent = 'View Leaderboard';
+  document.querySelector('#overlay-success .btn-primary').onclick = () => {
+    document.getElementById('overlay-success').classList.remove('active');
+    showScreen('leaderboard');
+  };
+}
+
+// ═══════════════════════════════
+// VIDEO UPLOAD
+// ═══════════════════════════════
+function handleVideoUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('upload-status');
+
+  // Check it's a video
+  if (!file.type.startsWith('video/')) {
+    showToast('Please upload a video file.', 'error');
+    return;
+  }
+
+  // Check duration (approx via size — real check needs video element)
+  const video = document.createElement('video');
+  video.preload = 'metadata';
+  video.src = URL.createObjectURL(file);
+  video.onloadedmetadata = () => {
+    URL.revokeObjectURL(video.src);
+    const dur = video.duration;
+    if (dur < 25) {
+      showToast('Video too short! Minimum 30 seconds required.', 'error');
+      return;
+    }
+    if (dur > 75) {
+      showToast('Video too long! Maximum 1 minute allowed.', 'error');
+      return;
+    }
+    state.videoProof = file;
+    status.textContent = '✓ ' + file.name + ' (' + Math.round(dur) + 's)';
+    status.style.color = 'var(--accent2)';
+    document.getElementById('btn-complete').disabled = false;
+    document.getElementById('btn-complete').textContent = '✓ Dare Done!';
+    showToast('Video accepted! Now mark the dare complete.', 'success');
+  };
+}
+
+// ═══════════════════════════════
+// SUPABASE SAVE / LOAD
+// ═══════════════════════════════
+async function saveProgress() {
+  if (!state.player?.id) return;
+  await dbCall(`players?id=eq.${state.player.id}`, 'PATCH', {
+    current_level: state.level,
+    total_points: state.points,
+    completed_levels: state.completed,
+    last_active: new Date().toISOString()
+  });
+}
+
+async function loadLeaderboard() {
+  const list = document.getElementById('lb-list');
+  list.innerHTML = '<div style="color:var(--muted);font-size:0.75rem;text-align:center;padding:2rem">Loading...</div>';
+
+  const data = await dbCall('players?select=name,current_level,total_points&order=total_points.desc&limit=20');
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:0.75rem;text-align:center;padding:2rem">No players yet — be the first!</div>';
+    return;
+  }
+
+  const colors = ['#ffd166','#c0c0d0','#c07840'];
+  const rankClass = ['gold','silver','bronze'];
+  const bgs = ['rgba(255,209,102,0.15)','rgba(192,192,208,0.1)','rgba(192,120,64,0.1)'];
+
+  list.innerHTML = data.map((p,i) => {
+    const initials = (p.name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const rank = i+1;
+    return `
+    <div class="lb-row" style="${i<3?'border-color:'+colors[i]+';background:'+bgs[i]:''}" >
+      <div class="lb-rank ${rankClass[i]||''}">${rank <= 3 ? ['🥇','🥈','🥉'][i] : rank}</div>
+      <div class="lb-avatar" style="background:hsl(${(rank*47)%360},60%,30%);color:hsl(${(rank*47)%360},80%,80%)">${initials}</div>
+      <div class="lb-info">
+        <div class="lb-name">${p.name}</div>
+        <div class="lb-lvl">Level ${(p.current_level||0)+1} / 67</div>
+      </div>
+      <div class="lb-score">${(p.total_points||0).toLocaleString()}</div>
+    </div>`;
+  }).join('');
+}
+
+async function loadStats() {
+  const data = await dbCall('players?select=id,total_points&order=total_points.desc');
+  if (data) {
+    document.getElementById('stat-players').textContent = data.length;
+    document.getElementById('stat-completions').textContent = data.filter(p=>p.total_points > 5000).length;
+  }
+}
+
+// ═══════════════════════════════
+// TOAST
+// ═══════════════════════════════
+let toastTimer;
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = 'toast'; }, 3000);
+}
+
+// Init
+loadStats();
+</script>
+</body>
+</html>
