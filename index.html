@@ -392,7 +392,7 @@
 </style>
 </head>
 <body>
-<audio id="bg-music" loop preload="auto" volume="0.3">
+<audio id="bg-music" loop preload="auto" crossorigin="anonymous">
   <source src="bg-music.mp3" type="audio/mpeg">
 </audio>
 <canvas id="canvas-bg"></canvas>
@@ -561,6 +561,18 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+// ═══════════════════════════════
+// AUDIO INITIALIZATION
+// ═══════════════════════════════
+window.addEventListener('DOMContentLoaded', function() {
+  const bgMusic = document.getElementById('bg-music');
+  if (bgMusic) {
+    bgMusic.volume = 0.3;
+    bgMusic.loop = true;
+    console.log('Audio element initialized. Volume:', bgMusic.volume, 'Loop:', bgMusic.loop);
+  }
+});
+
 // ═══════════════════════════════
 // THREE.JS BACKGROUND
 // ═══════════════════════════════
@@ -753,7 +765,18 @@ function showScreen(name) {
     nav.classList.add('active');
     setNavActive('game');
     bgMusic.volume = 0.3;
-    bgMusic.play().catch(e => console.log('Music play failed:', e));
+    bgMusic.currentTime = 0;
+    const playPromise = bgMusic.play();
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        console.log('Music playing successfully');
+      }).catch(e => {
+        console.error('Music play failed:', e.name, e.message);
+        console.log('Current src:', bgMusic.currentSrc);
+        console.log('Network state:', bgMusic.networkState);
+        console.log('Ready state:', bgMusic.readyState);
+      });
+    }
     renderLevel();
   } else if (name === 'leaderboard' || name === 'leaderboard-init') {
     document.getElementById('screen-leaderboard').classList.add('active');
