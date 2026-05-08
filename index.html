@@ -392,7 +392,7 @@
 </style>
 </head>
 <body>
-<audio id="bg-music" loop preload="auto">
+<audio id="bg-music" loop preload="auto" volume="0.3">
   <source src="bg-music.mp3" type="audio/mpeg">
 </audio>
 <canvas id="canvas-bg"></canvas>
@@ -737,18 +737,23 @@ async function dbCall(endpoint, method='GET', body=null) {
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const nav = document.getElementById('bottom-nav');
+  const bgMusic = document.getElementById('bg-music');
 
   if (name === 'landing') {
     document.getElementById('screen-landing').classList.add('active');
     nav.classList.remove('active');
+    bgMusic.pause();
     loadStats();
   } else if (name === 'register') {
     document.getElementById('screen-register').classList.add('active');
     nav.classList.remove('active');
+    bgMusic.pause();
   } else if (name === 'game') {
     document.getElementById('screen-game').classList.add('active');
     nav.classList.add('active');
     setNavActive('game');
+    bgMusic.volume = 0.3;
+    bgMusic.play().catch(e => console.log('Music play failed:', e));
     renderLevel();
   } else if (name === 'leaderboard' || name === 'leaderboard-init') {
     document.getElementById('screen-leaderboard').classList.add('active');
@@ -756,6 +761,7 @@ function showScreen(name) {
       nav.classList.add('active');
       setNavActive('leaderboard');
     }
+    bgMusic.pause();
     loadLeaderboard();
   }
   state.screen = name;
@@ -808,7 +814,10 @@ async function registerPlayer() {
 
   document.getElementById('g-avatar').textContent = initials;
   document.getElementById('g-name').textContent = name;
-  document.getElementById('bg-music').play().catch(e => console.log('Audio play failed:', e));
+  const bgMusic = document.getElementById('bg-music');
+  bgMusic.volume = 0.3;
+  bgMusic.currentTime = 0;
+  bgMusic.play().catch(e => console.log('Audio play failed:', e));
   showScreen('game');
 }
 
