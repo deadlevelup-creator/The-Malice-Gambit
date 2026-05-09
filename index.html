@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>The Dare Gambit — 67 Levels of Chaos</title>
+<title>The-Malice-Gambit — 67 Levels of Chaos</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <style>
   :root {
@@ -400,7 +400,7 @@
 
   <!-- LANDING -->
   <div id="screen-landing" class="screen active">
-    <div class="logo-title">The Dare<br/>Gambit</div>
+    <div class="logo-title">The-Malice<br/>Gambit</div>
     <div class="logo-sub">67 Levels · Real Dares · Prove It</div>
     <div class="level-orbit">
       <div class="orbit-ring"><div class="orbit-dot"></div></div>
@@ -733,7 +733,80 @@ let state = {
 const SUPABASE_URL = 'YOUR_SUPABASE_URL';
 const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
+function hasSupabaseConfig() {
+  return SUPABASE_URL && SUPABASE_KEY &&
+    !SUPABASE_URL.includes('YOUR_SUPABASE') &&
+    !SUPABASE_KEY.includes('YOUR_SUPABASE') &&
+    SUPABASE_URL.startsWith('http');
+}
+
+function saveLocalPlayer(player) {
+  try {
+    localStorage.setItem('dareGambitPlayer', JSON.stringify(player));
+  } catch (err) {
+    console.warn('Unable to save local player:', err);
+  }
+}
+
+function saveUserSession() {
+  if (!state.player) return;
+  const session = {
+    player: state.player,
+    level: state.level,
+    points: state.points,
+    completed: state.completed
+  };
+  try {
+    localStorage.setItem('arena_user', JSON.stringify(session));
+  } catch (err) {
+    console.warn('Unable to save user session:', err);
+  }
+}
+
+function restoreSession() {
+  try {
+    const saved = localStorage.getItem('arena_user');
+    if (!saved) return false;
+
+    const session = JSON.parse(saved);
+    if (!session?.player) return false;
+
+    state.player = session.player;
+    state.level = session.level || 0;
+    state.points = session.points || 0;
+    state.completed = session.completed || [];
+
+    const initials = state.player.initials ||
+      (state.player.name || '').split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+    state.player.initials = initials;
+
+    document.getElementById('g-avatar').textContent = initials;
+    document.getElementById('g-name').textContent = state.player.name;
+
+    showToast('Welcome back, ' + state.player.name + '!', 'success');
+    startLocationTracking(state.player.id);
+    showScreen('game');
+    return true;
+  } catch (err) {
+    console.warn('Failed to restore session:', err);
+    return false;
+  }
+}
+
+function loadLocalPlayer() {
+  try {
+    return JSON.parse(localStorage.getItem('dareGambitPlayer')) || null;
+  } catch (err) {
+    return null;
+  }
+}
+
 async function dbCall(endpoint, method='GET', body=null) {
+  if (!hasSupabaseConfig()) {
+    console.warn('Supabase is not configured. Skipping backend request for:', endpoint);
+    return null;
+  }
+
   try {
     const opts = {
       method,
@@ -745,10 +818,17 @@ async function dbCall(endpoint, method='GET', body=null) {
       }
     };
     if (body) opts.body = JSON.stringify(body);
+
     const r = await fetch(SUPABASE_URL + '/rest/v1/' + endpoint, opts);
-    if (!r.ok) return null;
+    if (!r.ok) {
+      console.error('Supabase request failed:', r.status, r.statusText, endpoint);
+      return null;
+    }
     return await r.json();
-  } catch(e) { return null; }
+  } catch (e) {
+    console.error('Supabase fetch error:', e, endpoint);
+    return null;
+  }
 }
 
 // ═══════════════════════════════
@@ -877,44 +957,62 @@ async function registerWithLocation() {
   const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
   let player = null;
 
-  const existing = await dbCall(`players?email=eq.${encodeURIComponent(email)}&select=*`);
-  if (existing && existing.length > 0) {
-    player = existing[0];
-    state.level = player.current_level || 0;
-    state.points = player.total_points || 0;
-    state.completed = player.completed_levels || [];
-    showToast('Welcome back, ' + name + '!', 'success');
-
-    await dbCall(`players?id=eq.${player.id}`, 'PATCH', {
-      name,
-      contact_info: contact || player.contact_info
-    });
-  } else {
-    const created = await dbCall('players', 'POST', [{
+  if (!hasSupabaseConfig()) {
+    player = {
+      id: 'local-' + Date.now(),
       name,
       email,
       contact_info: contact,
       current_level: 0,
       total_points: 0,
       completed_levels: []
-    }]);
-
-    if (!created || created.length === 0) {
-      console.error('Player registration failed.');
-      showToast('Registration failed. Try again.', 'error');
-      return;
-    }
-    player = created[0];
+    };
+    saveLocalPlayer(player);
     state.level = 0;
     state.points = 0;
     state.completed = [];
-    showToast('Identity verified. Welcome to the Arena.', 'success');
+    showToast('Offline mode enabled. Registration stored locally.', 'success');
+  } else {
+    const existing = await dbCall(`players?email=eq.${encodeURIComponent(email)}&select=*`);
+    if (existing && existing.length > 0) {
+      player = existing[0];
+      state.level = player.current_level || 0;
+      state.points = player.total_points || 0;
+      state.completed = player.completed_levels || [];
+      showToast('Welcome back, ' + name + '!', 'success');
+
+      await dbCall(`players?id=eq.${player.id}`, 'PATCH', {
+        name,
+        contact_info: contact || player.contact_info
+      });
+    } else {
+      const created = await dbCall('players', 'POST', [{
+        name,
+        email,
+        contact_info: contact,
+        current_level: 0,
+        total_points: 0,
+        completed_levels: []
+      }]);
+
+      if (!created || created.length === 0) {
+        console.error('Player registration failed.');
+        showToast('Registration failed. Try again.', 'error');
+        return;
+      }
+      player = created[0];
+      state.level = 0;
+      state.points = 0;
+      state.completed = [];
+      showToast('Identity verified. Welcome to the Arena.', 'success');
+    }
   }
 
   state.player = { id: player.id, name, email, initials };
   document.getElementById('g-avatar').textContent = initials;
   document.getElementById('g-name').textContent = name;
 
+  saveUserSession();
   startLocationTracking(player.id);
   showScreen('game');
 }
@@ -1046,6 +1144,7 @@ async function skipLevel() {
   state.points = Math.max(0, state.points - dare.lose);
   showToast('Skipped. −' + dare.lose + ' pts.', 'error');
   advanceLevel();
+  await saveProgress();
 }
 
 function dismissOverlay() {
@@ -1130,6 +1229,13 @@ async function saveProgress(retries = 3) {
     return false;
   }
 
+  if (!hasSupabaseConfig()) {
+    console.warn('Offline mode: progress will not be saved remotely.');
+    saveUserSession();
+    showToast('Offline progress stored locally.', 'success');
+    return true;
+  }
+
   const saveData = {
     current_level: state.level,
     total_points: state.points,
@@ -1144,6 +1250,7 @@ async function saveProgress(retries = 3) {
       throw new Error('Save returned null response');
     }
 
+    saveUserSession();
     console.log('✓ Progress saved:', {level: state.level, points: state.points});
     showToast('Progress saved ✓', 'success');
     return true;
@@ -1165,6 +1272,11 @@ async function saveProgress(retries = 3) {
 async function loadLeaderboard() {
   const list = document.getElementById('lb-list');
   list.innerHTML = '<div style="color:var(--muted);font-size:0.75rem;text-align:center;padding:2rem">Loading...</div>';
+
+  if (!hasSupabaseConfig()) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:0.75rem;text-align:center;padding:2rem">Leaderboard unavailable offline. Configure Supabase to enable online scores.</div>';
+    return;
+  }
 
   const data = await dbCall('players?select=name,current_level,total_points&order=total_points.desc&limit=20');
   if (!data || data.length === 0) {
@@ -1193,6 +1305,12 @@ async function loadLeaderboard() {
 }
 
 async function loadStats() {
+  if (!hasSupabaseConfig()) {
+    document.getElementById('stat-players').textContent = '—';
+    document.getElementById('stat-completions').textContent = '—';
+    return;
+  }
+
   const data = await dbCall('players?select=id,total_points&order=total_points.desc');
   if (data) {
     document.getElementById('stat-players').textContent = data.length;
@@ -1213,7 +1331,10 @@ function showToast(msg, type='success') {
 }
 
 // Init
-loadStats();
+window.addEventListener('DOMContentLoaded', () => {
+  restoreSession();
+  loadStats();
+});
 </script>
 </body>
 </html>
