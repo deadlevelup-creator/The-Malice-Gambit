@@ -1220,6 +1220,165 @@ function handleVideoUpload(input) {
 }
 
 // ═══════════════════════════════
+// PROOF TAB + CAMERA RECORDING
+// ═══════════════════════════════
+function switchProofTab(tab) {
+  activeProofTab = tab;
+  document.getElementById('tab-upload').classList.toggle('active', tab === 'upload');
+  document.getElementById('tab-camera').classList.toggle('active', tab === 'camera');
+  document.getElementById('panel-upload').classList.toggle('active', tab === 'upload');
+  document.getElementById('panel-camera').classList.toggle('active', tab === 'camera');
+  if (tab !== 'camera' && camStream) stopCamera();
+}
+
+async function startCamera() {
+  const statusEl = document.getElementById('camera-status');
+  const previewEl = document.getElementById('camera-preview');
+  try {
+    statusEl.textContent = 'Requesting camera access…';
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: true
+    });
+    previewEl.srcObject = camStream;
+    previewEl.classList.add('visible');
+    document.getElementById('recorded-playback').classList.remove('visible');
+    statusEl.textContent = 'Camera live — press Record when ready';
+    document.getElementById('btn-cam-start').disabled = true;
+    document.getElementById('btn-cam-record').disabled = false;
+    document.getElementById('btn-cam-stop').disabled = false;
+    document.getElementById('btn-cam-use').disabled = true;
+  } catch (err) {
+    statusEl.textContent = 'Camera access denied: ' + err.message;
+    showToast('Camera access denied. Try the upload tab.', 'error');
+    console.error('Camera error:', err);
+  }
+}
+
+function toggleRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+}
+
+function startRecording() {
+  if (!camStream) { showToast('Start camera first!', 'error'); return; }
+  recordedChunks = [];
+  recSeconds = 0;
+
+  const mimeType = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4']
+    .find(t => MediaRecorder.isTypeSupported(t)) || '';
+
+  try {
+    mediaRecorder = new MediaRecorder(camStream, mimeType ? { mimeType } : {});
+  } catch (e) {
+    mediaRecorder = new MediaRecorder(camStream);
+  }
+
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+  };
+  mediaRecorder.onstop = finalizeRecording;
+  mediaRecorder.start(100);
+
+  document.getElementById('rec-bar').classList.add('visible');
+  document.getElementById('btn-cam-record').textContent = '⏹ Stop Recording';
+  document.getElementById('btn-cam-record').classList.add('active-rec');
+  document.getElementById('camera-status').textContent = 'Recording…';
+  document.getElementById('btn-cam-use').disabled = true;
+
+  recTimerInterval = setInterval(() => {
+    recSeconds++;
+    const m = Math.floor(recSeconds / 60);
+    const s = recSeconds % 60;
+    document.getElementById('rec-time-display').textContent = m + ':' + String(s).padStart(2, '0');
+    if (recSeconds >= 60) {
+      stopRecording();
+      showToast('Max 1 minute reached — recording stopped.', 'success');
+    }
+  }, 1000);
+}
+
+function stopRecording() {
+  if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+  clearInterval(recTimerInterval);
+  mediaRecorder.stop();
+  document.getElementById('btn-cam-record').textContent = '⏺ Record';
+  document.getElementById('btn-cam-record').classList.remove('active-rec');
+  document.getElementById('rec-bar').classList.remove('visible');
+  document.getElementById('camera-status').textContent = 'Processing recording…';
+}
+
+function finalizeRecording() {
+  const mimeType = mediaRecorder.mimeType || 'video/webm';
+  const blob = new Blob(recordedChunks, { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const dur = recSeconds;
+
+  if (dur < 30) {
+    showToast('Too short! Need at least 30 seconds. Try again.', 'error');
+    document.getElementById('camera-status').textContent = 'Recording too short — try again (min 30s)';
+    document.getElementById('btn-cam-use').disabled = true;
+    return;
+  }
+
+  const playback = document.getElementById('recorded-playback');
+  playback.src = url;
+  playback.classList.add('visible');
+  document.getElementById('camera-preview').classList.remove('visible');
+
+  document.getElementById('camera-status').textContent = '✓ ' + dur + 's recorded — preview below. Click "Use This Take" to confirm.';
+  document.getElementById('btn-cam-use').disabled = false;
+  state._pendingBlob = blob;
+  showToast('Recording ready! Preview it, then click "Use This Take".', 'success');
+}
+
+function useRecording() {
+  if (!state._pendingBlob) { showToast('No recording found.', 'error'); return; }
+  state.proofBlob = state._pendingBlob;
+  state.videoProof = null;
+  state._pendingBlob = null;
+  const btn = document.getElementById('btn-complete');
+  btn.disabled = false;
+  btn.textContent = '✓ Dare Done!';
+  document.getElementById('camera-status').textContent = '✓ Take accepted! Hit "Dare Done!" to complete.';
+  showToast('Recording accepted! Now mark the dare complete.', 'success');
+}
+
+function stopCamera() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') { mediaRecorder.stop(); }
+  clearInterval(recTimerInterval);
+  if (camStream) {
+    camStream.getTracks().forEach(t => t.stop());
+    camStream = null;
+  }
+  const previewEl = document.getElementById('camera-preview');
+  previewEl.srcObject = null;
+  previewEl.classList.remove('visible');
+}
+
+function resetCameraUI() {
+  stopCamera();
+  document.getElementById('camera-status').textContent = 'Camera not started';
+  document.getElementById('btn-cam-start').disabled = false;
+  document.getElementById('btn-cam-record').disabled = true;
+  document.getElementById('btn-cam-record').textContent = '⏺ Record';
+  document.getElementById('btn-cam-record').classList.remove('active-rec');
+  document.getElementById('btn-cam-stop').disabled = true;
+  document.getElementById('btn-cam-use').disabled = true;
+  document.getElementById('rec-bar').classList.remove('visible');
+  document.getElementById('rec-time-display').textContent = '0:00';
+  const playback = document.getElementById('recorded-playback');
+  playback.src = '';
+  playback.classList.remove('visible');
+  state._pendingBlob = null;
+  recSeconds = 0;
+  recordedChunks = [];
+}
+
+// ═══════════════════════════════
 // SUPABASE SAVE / LOAD
 // ═══════════════════════════════
 async function saveProgress(retries = 3) {
