@@ -1132,9 +1132,7 @@ async function completeLevel() {
   document.getElementById('ov-pts').textContent = '+' + dare.earn;
   document.getElementById('ov-msg').textContent =
     state.level < 66 ? 'Level ' + (state.level+1) + ' complete! Next dare awaits...' :
-    '🎉 YOU FINISHED THE DARE GAMBIT! All 67 levels conquered!';
-  document.getElementById('overlay-success').classList.add('active');
-
+    '🎉 YOU FINISHED THE-MALICE-GAMBIT! All 67 levels conquered!';
   await saveProgress();
 }
 
@@ -1173,7 +1171,7 @@ function showCompletion() {
   document.getElementById('overlay-success').classList.remove('active');
   document.getElementById('ov-pts').textContent = state.points + ' pts';
   document.getElementById('ov-msg').textContent =
-    '🏆 You completed ALL 67 Dare Gambit levels! Final score: ' + state.points + ' points. You are a legend.';
+    '🏆 You completed ALL 67 The-Malice-Gambit levels! Final score: ' + state.points + ' points. You are a legend.';
   document.getElementById('overlay-success').classList.add('active');
   document.querySelector('#overlay-success .btn-primary').textContent = 'View Leaderboard';
   document.querySelector('#overlay-success .btn-primary').onclick = () => {
