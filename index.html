@@ -1133,6 +1133,7 @@ async function completeLevel() {
   document.getElementById('ov-msg').textContent =
     state.level < 66 ? 'Level ' + (state.level+1) + ' complete! Next dare awaits...' :
     '🎉 YOU FINISHED THE-MALICE-GAMBIT! All 67 levels conquered!';
+  document.getElementById('overlay-success').classList.add('active');
   await saveProgress();
 }
 
@@ -1337,8 +1338,8 @@ function finalizeRecording() {
 
 function useRecording() {
   if (!state._pendingBlob) { showToast('No recording found.', 'error'); return; }
+  state.videoProof = state._pendingBlob;
   state.proofBlob = state._pendingBlob;
-  state.videoProof = null;
   state._pendingBlob = null;
   const btn = document.getElementById('btn-complete');
   btn.disabled = false;
