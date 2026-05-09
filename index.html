@@ -1161,8 +1161,8 @@ function retryLevel() {
 }
 
 function advanceLevel() {
-  state.level = Math.min(state.level + 1, 66);
-  if (state.level >= 67) { showCompletion(); return; }
+  state.level = Math.min(state.level + 1, DARES.length);
+  if (state.level >= DARES.length) { showCompletion(); return; }
   renderLevel();
 }
 
@@ -1171,10 +1171,11 @@ function showCompletion() {
   document.getElementById('overlay-success').classList.remove('active');
   document.getElementById('ov-pts').textContent = state.points + ' pts';
   document.getElementById('ov-msg').textContent =
-    '🏆 You completed ALL 67 The-Malice-Gambit levels! Final score: ' + state.points + ' points. You are a legend.';
+    '🏆 You completed ALL 67 levels! Final score: ' + state.points + ' points. Legend status unlocked.';
   document.getElementById('overlay-success').classList.add('active');
-  document.querySelector('#overlay-success .btn-primary').textContent = 'View Leaderboard';
-  document.querySelector('#overlay-success .btn-primary').onclick = () => {
+  const btn = document.querySelector('#overlay-success .btn-primary');
+  btn.textContent = 'View Leaderboard';
+  btn.onclick = () => {
     document.getElementById('overlay-success').classList.remove('active');
     showScreen('leaderboard');
   };
@@ -1201,7 +1202,7 @@ function handleVideoUpload(input) {
   video.onloadedmetadata = () => {
     URL.revokeObjectURL(video.src);
     const dur = video.duration;
-    if (dur < 25) {
+    if (dur < 30) {
       showToast('Video too short! Minimum 30 seconds required.', 'error');
       return;
     }
