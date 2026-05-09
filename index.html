@@ -108,6 +108,15 @@
     cursor: pointer; transition: all 0.2s; margin-top: 1rem;
   }
   .btn-secondary:hover { background: rgba(0,245,196,0.1); }
+  .btn-small {
+    display: inline-block; padding: 0.5rem 1rem;
+    background: var(--card); color: var(--text);
+    font-family: 'Space Mono', monospace; font-size: 0.7rem;
+    letter-spacing: 1px; text-transform: uppercase;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    cursor: pointer; transition: all 0.2s; margin-left: 0.5rem;
+  }
+  .btn-small:hover { background: var(--surface); }
 
   .stats-row {
     display: flex; gap: 2rem; justify-content: center;
@@ -458,6 +467,9 @@
         </div>
       </div>
       <div class="level-badge" id="g-level-badge">Level 1</div>
+      <button class="btn-small" onclick="exportSaveData()">💾 Export</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importSaveData(event)">
+      <button class="btn-small" onclick="document.getElementById('import-file').click()">📁 Import</button>
     </div>
 
     <div class="progress-track" id="progress-track"></div>
@@ -763,6 +775,50 @@ function saveUserSession() {
   }
 }
 
+function exportSaveData() {
+  if (!state.player) {
+    showToast('No game data to export!', 'error');
+    return;
+  }
+  const data = {
+    player: state.player,
+    level: state.level,
+    points: state.points,
+    completed: state.completed,
+    exportedAt: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'malice-gambit-save.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Save data exported!', 'success');
+}
+
+function importSaveData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.player) throw new Error('Invalid save file');
+      state.player = data.player;
+      state.level = data.level || 0;
+      state.points = data.points || 0;
+      state.completed = data.completed || [];
+      saveUserSession();
+      renderLevel();
+      showToast('Save data imported!', 'success');
+    } catch (err) {
+      showToast('Invalid save file!', 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
 function restoreSession() {
   try {
     const saved = localStorage.getItem('arena_user');
@@ -1061,7 +1117,7 @@ function buildProgressTrack() {
   for (let i = 0; i < 67; i++) {
     const pip = document.createElement('div');
     pip.className = 'progress-pip' +
-      (i < state.level ? ' done' : '') +
+      (state.completed.includes(i) ? ' done' : '') +
       (i === state.level ? ' current' : '');
     track.appendChild(pip);
   }
@@ -1491,8 +1547,18 @@ function showToast(msg, type='success') {
 
 // Init
 window.addEventListener('DOMContentLoaded', () => {
-  restoreSession();
+  const restored = restoreSession();
   loadStats();
+  if (restored) {
+    // Auto-save every 10 seconds
+    setInterval(() => {
+      if (state.player) saveUserSession();
+    }, 10000);
+    // Save when page becomes hidden
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && state.player) saveUserSession();
+    });
+  }
 });
 </script>
 </body>
